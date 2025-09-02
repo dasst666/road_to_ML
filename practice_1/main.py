@@ -1,7 +1,7 @@
-from typing import Union
-from fastapi import FastAPI
+from typing import Annotated, Union
+from fastapi import FastAPI, HTTPException
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from enum import Enum
 
@@ -58,36 +58,39 @@ data = {
 
 class User(BaseModel):
     id: int
-    name: str
-    age: int
+    name: Annotated[str, Field(min_length=2, max_length=50)] 
+    age: Annotated[int, Field(ge=1, le=150)]
 
-@app.get("/users/")
+@app.get("/users/", response_model=User)
 async def get_all_users():
     return data
 
-@app.get("/users/{user_id}")
+@app.get("/users/{user_id}", response_model=User)
 async def get_user(user_id: int):
     # if user_id in data:
     #     return data[user_id]
     return data.get(user_id)
     
-@app.post("/users/")
+@app.post("/users/", response_model=User)
 async def create_user(user: User):
-    # user_dict = user_data.model_dump()
-    # data.update(user_dict)
-    # return data
+    if user.id in data:
+        raise HTTPException(status_code=400, detail="User already exists")
     data[user.id] = {"name": user.name, "age": user.age}
     return data[user.id]
 
-@app.put("/users/{user_id}")
+@app.put("/users/{user_id}", response_model=User)
 async def update_user(user_id: int, user: User):
+    if user_id != user.id:
+        raise HTTPException(status_code=400, detail="User id in path and body must be same")
+    if user.id not in data:
+        raise HTTPException(status_code=404, detail="User not found")
     data[user_id] = {"name": user.name, "age": user.age}
     return data[user_id]
 
-@app.delete("/users/{user_id}")
+@app.delete("/users/{user_id}", response_model=User)
 async def delete_user(user_id: int):
     if user_id in data:
         deleted = data.pop(user_id)
         return deleted
-
+    raise HTTPException(status_code=404, detail="User not found")
     

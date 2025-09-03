@@ -5,7 +5,11 @@ from pydantic import BaseModel, Field
 
 from enum import Enum
 
-app = FastAPI()
+from practice_1.api.routers import router as sync_router
+
+app = FastAPI(title="FastAPI + SQLAlchemy 2.x + PostgreSQL")
+
+app.include_router(sync_router) 
 
 @app.get("/")
 async def root():

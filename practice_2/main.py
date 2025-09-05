@@ -1,9 +1,12 @@
 from fastapi import Depends, FastAPI, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from db.database import SessionLocal, Book
+from db.database import SessionLocal
 from schemas.book import BookCreate, BookRead, BookUpdate
+from tasks import hello
+from db.models.book import Book
 
 app = FastAPI()
 
@@ -66,3 +69,19 @@ def delete_book(book_id: int, db: Session = Depends(get_db)):
     else:
         raise HTTPException(status_code=404, detail="Такой книги не существует")
 
+class HelloIn(BaseModel):
+    name: str
+
+@app.post("/enqueue")
+def enqueue_task(payload: HelloIn):
+    task = hello.delay(payload.name)
+    return {"task_id": task.id, "state": "queued"}
+
+@app.get("/result/{task_id}")
+def get_result(task_id: str):
+    res = hello.AsyncResult(task_id)
+    if res.state == "PENDING":
+        return {"state": res.state}
+    if res.state == "FAILURE":
+        return {"state": res.state, "error": str(res.info)}
+    return {"state": res.state, "result": res.result}

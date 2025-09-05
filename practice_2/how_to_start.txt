@@ -1,0 +1,79 @@
+# первый запуск / обычный запуск
+docker compose up -d
+
+# запустить и сразу смотреть логи всего
+docker compose up
+
+# API жив?
+curl http://localhost:8000/
+
+# Redis отвечает?
+docker compose exec redis redis-cli ping
+
+# Celery установлен в воркере?
+docker compose exec worker python -m celery --version
+
+# поставить задачу
+curl -X POST http://localhost:8000/enqueue \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Dastan"}'
+
+# подставь вернувшийся task_id:
+TASK_ID=a5f9ce44-a2ee-4881-a385-c1190cc99df8
+curl "http://localhost:8000/result/$TASK_ID"
+
+# перезапустить один сервис (без пересборки)
+docker compose restart api
+docker compose restart worker
+docker compose restart db
+docker compose restart redis
+
+# пересоздать сервис с новой командой/переменными (compose поменялся)
+docker compose up -d --no-deps --force-recreate api
+docker compose up -d --no-deps --force-recreate worker
+
+# собрать образы заново (менял requirements.txt или Dockerfile)
+docker compose build --no-cache api worker
+docker compose up -d
+
+# логи конкретного сервиса
+docker compose logs -f api
+docker compose logs -f worker
+docker compose logs -f db
+docker compose logs -f redis
+
+# зайти внутрь контейнера (bash/ш)
+docker compose exec api sh
+docker compose exec worker sh
+
+# остановить контейнеры, оставить тома/данные
+docker compose down
+
+# остановить и удалить тома (сотрутся данные БД/кэша)
+docker compose down -v
+
+
+# остановить только Redis
+docker compose stop redis
+
+# запустить только Redis
+docker compose start redis
+
+# версия Celery в воркере
+docker compose exec worker python -m celery --version
+
+# показать зарегистрированные задачи (изнутри воркера, питоном)
+docker compose exec worker python - <<'PY'
+from celery.app.control import Inspect
+from celery_app import celery_app
+print(sorted((Inspect(app=celery_app).registered() or {}).get('celery@', [])))
+PY
+
+# сводка: что занимает место
+docker system df
+
+# удалить неиспользуемые контейнеры/образы/кэш
+docker system prune -a
+
+# (по желанию) удалить неиспользуемые тома (ОСТОРОЖНО: данные!)
+docker system prune --volumes

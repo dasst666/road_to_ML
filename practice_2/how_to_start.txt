@@ -19,7 +19,7 @@ curl -X POST http://localhost:8000/enqueue \
   -d '{"name":"Dastan"}'
 
 # подставь вернувшийся task_id:
-TASK_ID=a5f9ce44-a2ee-4881-a385-c1190cc99df8
+TASK_ID=88cdae84-0cda-42b5-bec6-f9e94a2afb0f
 curl "http://localhost:8000/result/$TASK_ID"
 
 # перезапустить один сервис (без пересборки)

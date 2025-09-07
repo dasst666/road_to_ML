@@ -42,7 +42,7 @@ services:
       - "8000:8000"
   worker:
     build: .
-    command: python3 -m celery -A celery_app.celery_app worker --loglevel=INFO
+    command: python3 -m celery -A practice_2.workers.celery_app.celery_app worker --loglevel=INFO
     volumes:
       - ./:/code
     working_dir: /code

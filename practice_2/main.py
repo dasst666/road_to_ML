@@ -4,9 +4,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from db.database import SessionLocal
-from schemas.book import BookCreate, BookRead, BookUpdate
-from tasks import hello, parse_text
 from db.models.book import Book
+from schemas.book import BookCreate, BookRead, BookUpdate
+from practice_2.workers.tasks import hello, parse_text
+from practice_2.workers.schemas.text import TextIn
+from practice_2.workers.celery_app import celery_app
+
 
 app = FastAPI()
 
@@ -87,10 +90,6 @@ def get_result(task_id: str):
     return {"state": res.state, "result": res.result}
 
 
-
-class TextIn(BaseModel):
-    text: str
-
 @app.post("/enqueue-text")
 def enqueue_parse_task(payload: TextIn):
     task = parse_text.delay(payload.text)
@@ -98,7 +97,7 @@ def enqueue_parse_task(payload: TextIn):
 
 @app.get("/result-text/{task_id}")
 def get_parse_result(task_id: str):
-    res = parse_text.AsyncResult(task_id)
+    res = parse_text.AsyncResult(task_id, app=celery_app)
     if res.state == "PENDING":
         return {"state": res.state}
     if res.state == "FAILURE":

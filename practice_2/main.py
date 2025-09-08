@@ -6,9 +6,9 @@ from sqlalchemy.exc import IntegrityError
 from db.database import SessionLocal
 from db.models.book import Book
 from schemas.book import BookCreate, BookRead, BookUpdate
-from practice_2.workers.tasks import hello, parse_text
-from practice_2.workers.schemas.text import TextIn
-from practice_2.workers.celery_app import celery_app
+from workers.tasks import hello, parse_text
+from workers.schemas.text import TextIn
+from workers.celery_app import celery_app
 
 
 app = FastAPI()

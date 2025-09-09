@@ -37,9 +37,16 @@ target_metadata = Base.metadata
 def get_url():
     url = os.getenv("DATABASE_URL")
     if not url:
-        raise RuntimeError("DATABASE_URL is not set")
+        DB_USER = os.getenv("DB_USER")
+        DB_PASSWORD = os.getenv("DB_PASSWORD")
+        DB_HOST = os.getenv("DB_HOST", "db")
+        DB_PORT = os.getenv("DB_PORT", "5432")
+        DB_NAME = os.getenv("DB_NAME")
+
+        url = f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     return url
 
+config.set_main_option("sqlalchemy.url", get_url())
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.

@@ -3,8 +3,9 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from db.database import SessionLocal
+from db.database import SessionLocal, get_db
 from db.models.book import Book
+from schemas.task_parse_text import TaskResult
 from schemas.book import BookCreate, BookRead, BookUpdate
 from workers.tasks import hello, parse_text
 from workers.schemas.text import TextIn
@@ -12,13 +13,6 @@ from workers.celery_app import celery_app
 
 
 app = FastAPI()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @app.post("/books/", response_model=BookRead, status_code=status.HTTP_201_CREATED)
 async def create_book(payload: BookCreate, db: Session = Depends(get_db)):
@@ -91,15 +85,38 @@ def get_result(task_id: str):
 
 
 @app.post("/enqueue-text")
-def enqueue_parse_task(payload: TextIn):
+def enqueue_parse_task(payload: TextIn, db: Session = Depends(get_db)):
     task = parse_text.delay(payload.text)
+    row = TaskResult(
+        task_id=task.id,
+        status="QUEUED",
+        input_text=payload.text,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
     return {"task_id": task.id, "state": "queued"}
 
 @app.get("/result-text/{task_id}")
-def get_parse_result(task_id: str):
+def get_parse_result(task_id: str, db: Session = Depends(get_db)):
     res = parse_text.AsyncResult(task_id, app=celery_app)
-    if res.state == "PENDING":
-        return {"state": res.state}
-    if res.state == "FAILURE":
-        return {"state": res.state, "error": str(res.info)}
-    return {"state": res.state, "result": res.result}
+    row = db.execute(
+        select(TaskResult).where(TaskResult.task_id == task_id)
+    ).scalar_one_or_none
+
+    body = {"task_id": task_id, "state": res.state}
+    if row:
+        body.update({
+            "db_status": row.status,
+            "result": row.result,
+            "error": row.error,
+            "created_at": row.created_at,
+            "finished_at": row.finished_at,
+        })
+    # if res.state == "PENDING":
+    #     return {"state": res.state}
+    # if res.state == "FAILURE":
+    #     return {"state": res.state, "error": str(res.info)}
+    # return {"state": res.state, "result": res.result}
+    return body

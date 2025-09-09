@@ -14,8 +14,18 @@ DB_NAME = os.getenv("DB_NAME")
 
 DATABASE_URL = f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=True, future=True)
 
-Base.metadata.create_all(engine)
+SessionLocal = sessionmaker(
+    bind=engine, 
+    expire_on_commit=False,
+    future=True,
+    pool_pre_ping=True,
+    )
 
-SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

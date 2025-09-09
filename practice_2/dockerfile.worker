@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /code
+
+COPY requirements.txt ./requirements.txt
+RUN pip install -U pip && pip install --no-cache-dir -r requirements.txt
+
+# psql только если тебе нужен wait на psql в самом worker (у нас используется pg_isready в командe из compose)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-client \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONPATH=/code

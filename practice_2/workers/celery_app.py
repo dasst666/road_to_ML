@@ -15,5 +15,5 @@ celery_app.conf.update(
     result_serializer="json",
     accept_content=["json"],
     task_default_queue="default",
-    include=["practice_2.workers.tasks"],
+    include=["workers.tasks"],
 )

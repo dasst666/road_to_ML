@@ -7,7 +7,7 @@ class Base(DeclarativeBase):
     pass
 
 class TaskResult(Base):
-    __tablename__ = "task_result"
+    __tablename__ = "task_results"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     task_id: Mapped[str] = mapped_column(String(50), index=True, unique=True)
     status: Mapped[str] = mapped_column(String(50), index=True)

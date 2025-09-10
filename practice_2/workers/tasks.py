@@ -1,79 +1,74 @@
-import datetime
-from sqlalchemy import select
-from db.database import SessionLocal
-from schemas.task_parse_text import TaskResult
-from .celery_app import celery_app
-import time
+# workers/tasks.py
 import re
+from datetime import datetime
 from celery import states
-
+from workers.celery_app import celery_app
+from db.database import SessionLocal
+from sqlalchemy import select
+from schemas.task_parse_text import TaskResult 
 import logging
 
 logger = logging.getLogger(__name__)
 
-@celery_app.task
+@celery_app.task(name="workers.tasks.hello")
 def hello(name: str) -> str:
-    # Симулируем долгую работу
+    import time
     time.sleep(2)
     return f"Hello, {name}!"
 
-@celery_app.task(name="workers.tasks.parse_text")
-def parse_text(self, text: str): 
-    session = SessionLocal()
+@celery_app.task(bind=True, name="workers.tasks.parse_text", autoretry_for=(), retry_kwargs={"max_retries": 0})
+def parse_text(self, text: str):
+    task_id = self.request.id
 
-    try:
+    # старт задачи → обновим запись, если она есть
+    with SessionLocal() as session:
         row = session.execute(
-            select(TaskResult).where(TaskResult.task_id == self.request.id)
-        )
+            select(TaskResult).where(TaskResult.task_id == task_id)
+        ).scalar_one_or_none()
         if row:
             row.status = states.STARTED
             session.add(row)
-            session.commit
-    finally:
-        session.close()
-    
+            session.commit()
+
     try:
         cleaned_text = re.sub(r"[!,.?@+\-/><%:;]", "", text.lower())
         words = cleaned_text.split()
-        
         words_counter = len(words)
         unique_words_counter = len(set(words))
         symbols_counter = len(re.findall(r"[!,.?@+\-/><%:;]", text))
         longest_word = max(words, key=len) if words else ""
 
-        logger.info(f"Parsed text: {words_counter} words")
-        logger.info(f"Parsed text longest word: {longest_word}")
-        logger.info(f"Parsed text: {unique_words_counter} unique words")
-        logger.info(f"Parsed text: {symbols_counter} symbols")
-
         result = {
-                "words count": words_counter, 
-                "longest word": longest_word, 
-                "unique words count": unique_words_counter, 
-                "symbols count": symbols_counter
-                }
+            "words count": words_counter,
+            "longest word": longest_word,
+            "unique words count": unique_words_counter,
+            "symbols count": symbols_counter,
+        }
 
-        session = SessionLocal()
-        try:
+        logger.info(
+            "Parsed text: words=%s unique=%s symbols=%s longest=%s",
+            words_counter, unique_words_counter, symbols_counter, longest_word
+        )
+
+        # финиш задачи → сохраняем результат
+        with SessionLocal() as session:
             row = session.execute(
-                select(TaskResult).where(TaskResult.task_id == self.request.id)
-            ).scalar_one_or_none
-            
+                select(TaskResult).where(TaskResult.task_id == task_id)
+            ).scalar_one_or_none()
             if row:
                 row.status = states.SUCCESS
                 row.result = result
                 row.finished_at = datetime.utcnow()
                 session.add(row)
                 session.commit()
-        finally: 
-            session.close()
-        
+
         return result
+
     except Exception as e:
-        session = SessionLocal()
-        try:
+        # ошибка → зафиксируем её
+        with SessionLocal() as session:
             row = session.execute(
-                select(TaskResult).where(TaskResult.task_id == self.request.id)
+                select(TaskResult).where(TaskResult.task_id == task_id)
             ).scalar_one_or_none()
             if row:
                 row.status = states.FAILURE
@@ -81,7 +76,4 @@ def parse_text(self, text: str):
                 row.finished_at = datetime.utcnow()
                 session.add(row)
                 session.commit()
-        finally:
-            session.close()
         raise
-

@@ -4,14 +4,12 @@ from routers import users, tasks
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from database.db import init_models
+    await init_models()
     yield
 
 app = FastAPI(lifespan=lifespan)
-
-@app.on_event("startup")
-async def on_startup():
-    from database.db import init_models
-    await init_models()
+    
 
 app.include_router(users.router)
 app.include_router(tasks.router)

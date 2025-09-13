@@ -2,6 +2,7 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
 from typing import AsyncGenerator
+from models import *
 
 # во втором проекте другой подход есть к base классу
 Base = declarative_base()
@@ -23,8 +24,7 @@ SessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
-async def init_model():
-    from . import models
+async def init_models():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

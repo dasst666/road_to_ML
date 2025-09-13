@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException
-
-from schemas.tasks import TaskCreate, TaskPublic, TaskPublicNoID
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from database.db import get_session
+from models.tasks import Task
+from schemas.tasks import TaskCreate, TaskPublic, TaskPublicNoID, TaskUpdate
 
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
@@ -31,8 +33,19 @@ def show_task():
 def show_task(task_id: int):
     return data_dict.get(task_id)
 
-@router.post("/", response_model=TaskPublic)
-def create_task(payload: TaskCreate):
+@router.post("/", response_model=TaskPublic, status_code=201)
+async def create_task(payload: TaskCreate, session: AsyncSession = Depends(get_session)):
+    task = Task(title=payload.title, content = payload.content)
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+@router.put("/{task_id}", response_model=TaskPublicNoID)
+def update_task(task_id: int, payload: TaskUpdate):
     task_dict = payload.model_dump()
+    if task_dict.id != task_id:
+        raise HTTPException(status_code=400, detail="ID не совпадают")
+    if task_dict.id not in  data_dict:
+        raise HTTPException(status_code=404, detail="Такой записи не существует")
     data_dict[payload.id] = task_dict
-    return data_dict[payload.id]

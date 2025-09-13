@@ -6,14 +6,11 @@ class TaskBase(BaseModel):
     content: str = Field(..., min_length=1)
 
 class TaskCreate(TaskBase):
-    id: int
+    pass
 
-class TaskUpdate(TaskBase):
+class TaskUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=100)
     content: Optional[str] = Field(None, min_length=1, max_length=1000)
-
-class TaskToDB(TaskBase):
-    id: int
 
 class TaskPublic(TaskBase):
     id: int

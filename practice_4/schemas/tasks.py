@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 class TaskBase(BaseModel):
     title: str = Field(..., min_length=1)
@@ -14,6 +14,8 @@ class TaskUpdate(BaseModel):
 
 class TaskPublic(TaskBase):
     id: int
+
+    model_config = ConfigDict(from_attributes=True)
 
 class TaskPublicNoID(TaskBase):
     pass

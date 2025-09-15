@@ -24,6 +24,7 @@ SessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
+# в реальных проектах alembic говорят 
 async def init_models():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

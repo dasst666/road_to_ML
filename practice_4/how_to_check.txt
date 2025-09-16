@@ -1,0 +1,4 @@
+Запуск докер redis
+docker run -d --name myredis -p 6379:6379 redis:7-alpine
+Проверить get для tasks что берез из кеша
+curl -i http://localhost:8000/tasks/

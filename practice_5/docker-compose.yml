@@ -1,0 +1,28 @@
+services:
+ api:
+  container_name: api-practice_5
+  image: image-practice_5
+  build:
+   context: .
+   dockerfile: dockerfile.api
+  environment:
+   SENTIMENT_MODEL: "blanchefort/rubert-base-cased-sentiment" 
+   HF_HUB_ENABLE_HF_TRANSFER: "0"
+   PYTHONPATH: "/code"
+   HF_HOME: "/root/.cache/huggingface"
+  working_dir: /code
+  volumes:
+    - ./:/code                  
+    - hf_cache:/root/.cache/huggingface
+  ports: 
+   - "8000:8000"
+  command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/docs >/dev/null 2>&1 || exit 1"]
+    interval: 20s
+    timeout: 3s
+    retries: 5
+
+volumes:
+  hf_cache:

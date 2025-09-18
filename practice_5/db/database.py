@@ -6,14 +6,16 @@ from sqlalchemy.orm import sessionmaker
 
 
 load_dotenv()
+load_dotenv(override=False)
 
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME")
-
-DATABASE_URL = f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    PG_USER = os.getenv("POSTGRES_USER", "postgres")
+    PG_PASSWORD = os.getenv("POSTGRES_PASSWORD", "123")
+    PG_HOST = os.getenv("DB_HOST", "db")      
+    PG_PORT = os.getenv("DB_PORT", "5432")
+    PG_DB = os.getenv("POSTGRES_DB", "predict_db")
+    DATABASE_URL = f"postgresql+psycopg://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DB}"
 
 engine = create_engine(
     DATABASE_URL,

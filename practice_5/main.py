@@ -1,8 +1,12 @@
+from contextlib import asynccontextmanager
 import logging
+import threading
 import time
-from fastapi import FastAPI, Request
-
-from ml.model import predict_label_score
+from fastapi import Depends, FastAPI, Request
+from sqlalchemy.orm import Session
+from ml.model import get_pipeline, predict_label_score
+from db.database import get_db
+from models.predict import Predict
 from schemas.predict import PredictIn, PredictOut
 
 
@@ -10,30 +14,34 @@ app = FastAPI(title="Minimal Predict")
 
 
 logger = logging.getLogger("uvicorn.error")
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start = time.time()
-    logger.info("➡️ START %s %s", request.method, request.url.path)
-    try:
-        response = await call_next(request)
-        return response
-    finally:
-        dur_ms = (time.time() - start) * 1000
-        # response может быть не определён если исключение выше — поэтому в finally пишем осторожно
-        status = getattr(locals().get("response", None), "status_code", "-")
-        logger.info("✅ END   %s %s -> %s (%.1f ms)", request.method, request.url.path, status, dur_ms)
 
-@app.on_event("startup")
-def warmup():
-    from ml.model import get_pipeline
-    """Прогреваем пайплайн, но не валим приложение при ошибке."""
+def _warmup_job():
     try:
-        _ = get_pipeline()  # инициализация модели/токенайзера
-        logger.info("🧊 Warmed up sentiment pipeline")
+        logger.info("🔄 Warmup start...")
+        get_pipeline()
+        logger.info("✅ Warmup done")
     except Exception:
-        logger.exception("Warmup failed — продолжим без прогрева")
+        logger.exception("Warmup failed")
 
-@app.post("/predict", response_model=PredictOut)
-def predict(payload: PredictIn):
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # запускаем прогрев в отдельном потоке и сразу отдаём управление
+    threading.Thread(target=_warmup_job, daemon=True).start()
+    yield  # приложение уже принимает запросы
+    # (ничего на shutdown не делаем)
+
+app = FastAPI(title="Minimal Predict", lifespan=lifespan)
+
+@app.post("/predict", response_model=PredictOut, status_code=201)
+def predict(payload: PredictIn, db: Session = Depends(get_db)):
     label, score = predict_label_score(payload.text)
-    return PredictOut(label=label, score=score)
+
+    row = Predict(text=payload.text, label=label, score=score)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

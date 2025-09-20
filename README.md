@@ -22,3 +22,7 @@ Text (string) parser
 # practice_4
 ### About
 Todo mini app with database(postgresql) on FastAPI and with cache on Redis and wrap docker
+
+# practice_5
+### About
+FastAPI(Model for text) on docker with PostgreSQL(alembic) wrapped on docker and pgadmin on docker

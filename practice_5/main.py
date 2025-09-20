@@ -1,19 +1,18 @@
 from contextlib import asynccontextmanager
 import logging
 import threading
-import time
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI
 from sqlalchemy.orm import Session
 from ml.model import get_pipeline, predict_label_score
 from db.database import get_db
 from models.predict import Predict
 from schemas.predict import PredictIn, PredictOut
-
-
-app = FastAPI(title="Minimal Predict")
-
+from prometheus_client import Counter, generate_latest
+from starlette.responses import Response, PlainTextResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
 logger = logging.getLogger("uvicorn.error")
+REQUEST_COUNT = Counter("request_count", "Total number of requests")
 
 def _warmup_job():
     try:
@@ -25,12 +24,28 @@ def _warmup_job():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # запускаем прогрев в отдельном потоке и сразу отдаём управление
     threading.Thread(target=_warmup_job, daemon=True).start()
-    yield  # приложение уже принимает запросы
-    # (ничего на shutdown не делаем)
+    yield
 
 app = FastAPI(title="Minimal Predict", lifespan=lifespan)
+
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+
+Проверка:
+	1.	Запускаешь docker compose up -d
+	2.	Открываешь http://localhost:9090
+	3.	Вводишь в поиске метрик что-то типа http_requests_total
+	4.	Если Prometheus “видит” твой API — графики появятся.
+
+@app.middleware("http")
+async def count_requests(request, call_next):
+    response = await call_next(request)
+    REQUEST_COUNT.inc()
+    return response
+
+@app.get("/ping")
+def ping():
+    return PlainTextResponse("pong")
 
 @app.post("/predict", response_model=PredictOut, status_code=201)
 def predict(payload: PredictIn, db: Session = Depends(get_db)):
@@ -41,6 +56,11 @@ def predict(payload: PredictIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(row)
     return row
+
+@app.get("/predict", response_model=PredictOut)
+def get_predicts(db: Session = Depends(get_db)):
+    predicts = db.query(Predict).all()
+    return predicts
 
 @app.get("/health")
 def health():

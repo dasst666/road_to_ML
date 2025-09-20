@@ -87,3 +87,5 @@ wcwidth==0.2.13
 websockets==15.0.1
 wheel==0.45.1
 yarg==0.1.10
+prometheus-client>=0.20
+prometheus-fastapi-instrumentator>=7.0.0

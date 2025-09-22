@@ -1,28 +1,10 @@
-# practice_1 used technologies
-- FastAPI
-- Docker
-- PostgreSQL
-### About
-Try to do FastAPI with database(postgresql) and wrap docker
+# Road to ML Engineering
 
-# practice_2 used technologies
-- FastAPI
-- Docker
-- Celery
-- Redis
-- PostgreSQL
-- Alembic
-### About
-Base crud on FastAPI with database(postgresql+Alembic) with tasks on Celery to parse text with queue on Redis all wrap docker containers
+Сборник моих мини-проектов.
 
-# practice_3 
-### About
-Text (string) parser 
-
-# practice_4
-### About
-Todo mini app with database(postgresql) on FastAPI and with cache on Redis and wrap docker
-
-# practice_5
-### About
-FastAPI(Model for text) on docker with PostgreSQL(alembic) wrapped on docker and pgadmin on docker
+## 📂 Projects
+- practice_1/ Пощупать функционал FastAPI завернуть в Docker и поднять БД
+- practice_2/ CRUD, БД с миграциями (alembic), Celery таски с Redis очередью все в контейнерах Docker
+- practice_3/ Парсер текста на python (сколько букв, самое длинное слово и сколько символов)
+- practice_4/ Пощупать как работает кэш на Redis
+- practice_5/ Приложение с моделью анализа текста, БД с миграциями (alembic) и GUI pgadmin, мониторинг на Prometeus и Grafana, все в отдельных контейнерах Docker

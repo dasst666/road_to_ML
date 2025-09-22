@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
 import threading
+from typing import List
 from fastapi import Depends, FastAPI
 from sqlalchemy.orm import Session
 from ml.model import get_pipeline, predict_label_score
@@ -31,12 +32,6 @@ app = FastAPI(title="Minimal Predict", lifespan=lifespan)
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
-Проверка:
-	1.	Запускаешь docker compose up -d
-	2.	Открываешь http://localhost:9090
-	3.	Вводишь в поиске метрик что-то типа http_requests_total
-	4.	Если Prometheus “видит” твой API — графики появятся.
-
 @app.middleware("http")
 async def count_requests(request, call_next):
     response = await call_next(request)
@@ -57,7 +52,7 @@ def predict(payload: PredictIn, db: Session = Depends(get_db)):
     db.refresh(row)
     return row
 
-@app.get("/predict", response_model=PredictOut)
+@app.get("/predict", response_model=List[PredictOut])
 def get_predicts(db: Session = Depends(get_db)):
     predicts = db.query(Predict).all()
     return predicts
